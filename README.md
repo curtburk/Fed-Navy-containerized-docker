@@ -12,6 +12,8 @@ A fully functional maritime surveillance intelligence tool that analyzes reconna
 
 The application runs **Qwen3-VL-8B-Instruct**, a state-of-the-art vision-language model served via **vLLM** for high-performance GPU inference. A single model handles both image understanding and natural language report generation — no separate text model needed.
 
+Each analysis displays **token consumption metrics** (prompt, completion, and total tokens) — demonstrating exactly what the inference cost would be on a cloud API, and why on-premises inference eliminates those costs entirely.
+
 ### Two Example Scenarios
 
 **Non-threatening** — Upload `good-times.png` (aerial photo of a cruise ship) to demonstrate commercial vessel identification with NONE/LOW threat assessment.
@@ -28,7 +30,7 @@ The application runs **Qwen3-VL-8B-Instruct**, a state-of-the-art vision-languag
 
 3. **Vision AI runs locally on HP hardware.** An 8-billion parameter multimodal model analyzing images in seconds, on hardware the customer owns and controls.
 
-4. **No per-query costs.** Unlike cloud vision APIs that charge per image, on-premises inference has zero marginal cost.
+4. **No per-query costs.** The token counter shows exactly how many tokens each analysis consumes. On a cloud API, that's a billable event. On HP hardware, it's free.
 
 ---
 
@@ -81,11 +83,11 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
                               All inside one Docker container
 ```
 
-**Frontend** — Military-themed HTML/CSS/JavaScript interface with image upload, region selection, and structured report display.
+**Frontend** — Military-themed HTML/CSS/JavaScript interface with image upload, region selection, structured report display, and per-analysis token consumption metrics.
 
-**Backend** — FastAPI server that receives image uploads, base64-encodes them, and sends multimodal prompts to vLLM's OpenAI-compatible API. Handles threat classification, geolocation generation, and report assembly.
+**Backend** — FastAPI server that receives image uploads, base64-encodes them, and sends multimodal prompts to vLLM's OpenAI-compatible API. Handles threat classification, geolocation generation, report assembly, and token usage tracking across VLM calls.
 
-**Inference Engine** — vLLM serving Qwen3-VL-8B-Instruct in BF16 on GPU. Exposes an OpenAI-compatible `/v1/chat/completions` endpoint on internal port 8090. Handles both image understanding and text generation in a single model.
+**Inference Engine** — vLLM serving Qwen3-VL-8B-Instruct in BF16 on GPU. Exposes an OpenAI-compatible `/v1/chat/completions` endpoint on internal port 8090. Returns token usage statistics with each completion.
 
 **Containerization** — Based on `nvcr.io/nvidia/vllm:26.01-py3`. The entrypoint script starts vLLM in the background, waits for model loading, then starts the FastAPI application. The ~16GB model stays on the host and is mounted read-only.
 
@@ -137,6 +139,20 @@ curl -X POST http://localhost:8000/api/analyze \
   -F "custom_instructions=Focus on weapons systems"
 ```
 
+The response includes a `token_usage` object:
+
+```json
+{
+  "report_id": "SURV-20260325-1234",
+  "analysis": "...",
+  "token_usage": {
+    "prompt_tokens": 1842,
+    "completion_tokens": 347,
+    "total_tokens": 2189
+  }
+}
+```
+
 ---
 
 ## Operating Regions
@@ -158,13 +174,13 @@ curl -X POST http://localhost:8000/api/analyze \
 
 **Opening:** "Let me show you what happens when you put a vision-language AI model on hardware that never needs to phone home."
 
-**During Demo:** Upload the sample ship images. Select operationally relevant AORs. Walk through the 6-section intelligence report — vessel classification, physical characteristics, activity assessment, threat level, confidence, and recommendations.
+**During Demo:** Upload the sample ship images. Select operationally relevant AORs. Walk through the 6-section intelligence report — vessel classification, physical characteristics, activity assessment, threat level, confidence, and recommendations. Point out the token count at the bottom of the report.
 
 **Key Messages:**
 - "This image was analyzed by an 8-billion parameter multimodal AI, running locally"
 - "The imagery never left this machine — no cloud, no API calls, no network required"
 - "This works aboard a ship at sea with zero connectivity"
-- "No per-image charges — analyze as many images as you need"
+- "See the token count? On a cloud API, that analysis would cost money every time. Here, it's unlimited"
 
 **Closing:** "This is one example. The same hardware runs any AI workload where your data cannot leave your environment."
 
