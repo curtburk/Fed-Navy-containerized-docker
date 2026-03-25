@@ -1,4 +1,4 @@
-# Maritime Surveillance Intelligence Generator — Containerized
+# Maritime Surveillance Intelligence Generator - Containerized
 
 **Powered by HP ZGX Nano AI Station**
 
@@ -14,7 +14,7 @@ The application runs **Qwen3-VL-8B-Instruct**, a state-of-the-art vision-languag
 
 ### Two Example Scenarios
 
-**Non-threatening** — Upload `overhead-ship.jpg` (aerial photo of a cruise ship) to demonstrate commercial vessel identification with NONE/LOW threat assessment.
+**Non-threatening** — Upload `good-times.png` (aerial photo of a cruise ship) to demonstrate commercial vessel identification with NONE/LOW threat assessment.
 
 **Adversarial** — Upload `navy-ship.jpg` (aerial photo of a naval vessel) to demonstrate military vessel detection with HIGH threat classification and escalated recommendations.
 
@@ -105,7 +105,7 @@ navy-surveillance-containerized-docker/
 │   └── Navy-Emblem.png            # US Navy emblem
 ├── sample-images/
 │   ├── navy-ship.jpg              # Military vessel (HIGH threat demo)
-│   └── overhead-ship.jpg          # Cruise ship (LOW threat demo)
+│   └── good-times.png             # Cruise ship (LOW threat demo)
 ├── models/
 │   └── Qwen3-VL-8B-Instruct/     # Downloaded model (~16GB)
 ├── Dockerfile                      # Based on NVIDIA vLLM container
