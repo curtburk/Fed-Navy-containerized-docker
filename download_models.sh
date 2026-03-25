@@ -11,10 +11,10 @@ echo "============================================================"
 echo "  Maritime Surveillance Model Download"
 echo "============================================================"
 echo ""
-echo "  Model: Qwen/Qwen3-VL-8B-Instruct (~16GB)"
+echo "  Model: Qwen/Qwen3-VL-8B-Instruct (~11GB)"
 echo ""
 
-MODEL_DIR="./models/Qwen3-VL-8B-Instruct"
+MODEL_DIR="./models/Qwen3-VL-8B-Instruct-FP8"
 
 # Check if already downloaded
 if [ -d "$MODEL_DIR" ] && [ "$(ls -A $MODEL_DIR 2>/dev/null)" ]; then
@@ -41,8 +41,8 @@ echo ""
 python3 << 'EOF'
 from huggingface_hub import snapshot_download
 snapshot_download(
-    repo_id="Qwen/Qwen3-VL-8B-Instruct",
-    local_dir="./models/Qwen3-VL-8B-Instruct"
+    repo_id="Qwen/Qwen3-VL-8B-Instruct-FP8",
+    local_dir="./models/Qwen3-VL-8B-Instruct-FP8"
 )
 EOF
 
