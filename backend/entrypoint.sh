@@ -8,7 +8,7 @@
 
 set -e
 
-MODEL_PATH="${MODEL_PATH:-/models/Qwen3-VL-8B-Instruct}"
+MODEL_PATH="${MODEL_PATH:-/models/Qwen3-VL-8B-Instruct-FP8}"
 VLLM_PORT="${VLLM_PORT:-8090}"
 VLLM_MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-4096}"
 
