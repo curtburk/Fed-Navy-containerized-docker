@@ -113,8 +113,9 @@ http_client = httpx.AsyncClient(timeout=120.0)
 
 # ── vLLM interaction ────────────────────────────────────────────────────────
 
-async def query_vlm(image_b64: str, prompt: str, max_tokens: int = 512) -> str:
-    """Send an image + prompt to Qwen3-VL via vLLM's OpenAI-compatible API."""
+async def query_vlm(image_b64: str, prompt: str, max_tokens: int = 512) -> tuple:
+    """Send an image + prompt to Qwen3-VL via vLLM's OpenAI-compatible API.
+    Returns (content_text, usage_dict)."""
     try:
         response = await http_client.post(
             f"{VLLM_BASE_URL}/chat/completions",
@@ -144,16 +145,18 @@ async def query_vlm(image_b64: str, prompt: str, max_tokens: int = 512) -> str:
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        content = data["choices"][0]["message"]["content"].strip()
+        usage = data.get("usage", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})
+        return content, usage
     except Exception as e:
         logger.error(f"vLLM query failed: {e}")
         raise
 
 
-async def analyze_image_with_vlm(image_b64: str) -> dict:
+async def analyze_image_with_vlm(image_b64: str) -> tuple:
     """
     Analyze image using Qwen3-VL with a single comprehensive prompt.
-    Returns structured analysis dict.
+    Returns (structured_analysis_dict, usage_dict).
     """
     logger.info("Analyzing image with Qwen3-VL...")
 
@@ -168,7 +171,7 @@ HEADING: [What direction does the ship appear to be traveling?]
 
 Be specific and concise. Base your answers only on what you can see in the image."""
 
-    raw_response = await query_vlm(image_b64, prompt, max_tokens=400)
+    raw_response, usage = await query_vlm(image_b64, prompt, max_tokens=400)
 
     # Parse the structured response
     results = {
@@ -191,7 +194,7 @@ Be specific and concise. Base your answers only on what you can see in the image
                 break
 
     logger.info(f"VLM analysis results: {results}")
-    return results
+    return results, usage
 
 
 # ── Geolocation generation ──────────────────────────────────────────────────
@@ -252,18 +255,18 @@ def generate_report_id() -> str:
 
 # ── Intelligence report generation ──────────────────────────────────────────
 
-async def generate_threat_justification(image_b64: str, vessel_type: str, threat_level: str) -> str:
-    """Use VLM to generate a contextual threat justification."""
+async def generate_threat_justification(image_b64: str, vessel_type: str, threat_level: str) -> tuple:
+    """Use VLM to generate a contextual threat justification. Returns (text, usage_dict)."""
     prompt = f"""Based on this maritime reconnaissance image, provide a single sentence justification for a {threat_level} threat assessment of this {vessel_type}. Be specific to what you observe in the image. One sentence only."""
 
     try:
-        response = await query_vlm(image_b64, prompt, max_tokens=100)
+        response, usage = await query_vlm(image_b64, prompt, max_tokens=100)
         # Take first sentence only
         if ". " in response:
             response = response.split(". ")[0] + "."
-        return response
+        return response, usage
     except Exception:
-        return ""
+        return "", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
 def classify_threat(image_analysis: dict) -> tuple:
@@ -330,8 +333,8 @@ def generate_recommendations(threat_level: str, cargo: str, custom_instructions:
     return "\n   - ".join(recommendations)
 
 
-async def build_intelligence_report(image_analysis: dict, image_b64: str, custom_instructions: str = "") -> str:
-    """Build structured intelligence report from VLM analysis."""
+async def build_intelligence_report(image_analysis: dict, image_b64: str, custom_instructions: str = "") -> tuple:
+    """Build structured intelligence report from VLM analysis. Returns (report_text, usage_dict)."""
     vessel_type = image_analysis.get("vessel_type", "UNIDENTIFIED VESSEL")
     vessel_description = image_analysis.get("description", "No description available")
     cargo = image_analysis.get("cargo", "Unknown")
@@ -343,7 +346,7 @@ async def build_intelligence_report(image_analysis: dict, image_b64: str, custom
     threat_level, vessel_category, default_justification = classify_threat(image_analysis)
 
     # Get VLM-generated threat justification
-    threat_justification = await generate_threat_justification(image_b64, vessel_type, threat_level)
+    threat_justification, justification_usage = await generate_threat_justification(image_b64, vessel_type, threat_level)
     if not threat_justification:
         threat_justification = default_justification
 
@@ -374,7 +377,7 @@ async def build_intelligence_report(image_analysis: dict, image_b64: str, custom
 6. RECOMMENDATIONS
    - {recommendations_text}"""
 
-    return assessment
+    return assessment, justification_usage
 
 
 # ── Image analysis pipeline ─────────────────────────────────────────────────
@@ -399,10 +402,17 @@ async def analyze_image(image: Image.Image, region: str, custom_instructions: st
     image_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     # Get structured analysis from VLM
-    image_analysis = await analyze_image_with_vlm(image_b64)
+    image_analysis, analysis_usage = await analyze_image_with_vlm(image_b64)
 
     # Build intelligence report
-    analysis = await build_intelligence_report(image_analysis, image_b64, custom_instructions)
+    analysis, justification_usage = await build_intelligence_report(image_analysis, image_b64, custom_instructions)
+
+    # Accumulate token usage across both VLM calls
+    token_usage = {
+        "prompt_tokens": analysis_usage.get("prompt_tokens", 0) + justification_usage.get("prompt_tokens", 0),
+        "completion_tokens": analysis_usage.get("completion_tokens", 0) + justification_usage.get("completion_tokens", 0),
+        "total_tokens": analysis_usage.get("total_tokens", 0) + justification_usage.get("total_tokens", 0)
+    }
 
     # Generate synthetic geolocation
     geo_data = generate_synthetic_coordinates(region)
@@ -422,6 +432,7 @@ async def analyze_image(image: Image.Image, region: str, custom_instructions: st
         },
         "analysis": analysis,
         "raw_analysis": image_analysis,
+        "token_usage": token_usage,
         "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
