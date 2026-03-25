@@ -15,7 +15,7 @@ if docker ps -a --format '{{.Names}}' | grep -q "^maritime-surveillance-demo$"; 
 fi
 
 # Check that model exists
-MODEL_DIR="./models/Qwen3-VL-8B-Instruct"
+MODEL_DIR="./models/Qwen3-VL-8B-Instruct-FP8"
 if [ ! -d "$MODEL_DIR" ]; then
     echo ""
     echo "❌ Model not found: $MODEL_DIR"
