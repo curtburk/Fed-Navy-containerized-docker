@@ -10,7 +10,7 @@ Vision Language Model (VLM) demonstration for US Navy reconnaissance imagery ana
 
 A fully functional maritime surveillance intelligence tool that analyzes reconnaissance imagery in real time. Upload an aerial or satellite image of a vessel and the system generates a structured intelligence report including vessel classification, threat assessment, synthetic geolocation, and contextual recommendations.
 
-The application runs **Qwen3-VL-8B-Instruct**, a state-of-the-art vision-language model served via **vLLM** for high-performance GPU inference. A single model handles both image understanding and natural language report generation — no separate text model needed.
+The application runs **Qwen3-VL-8B-Instruct-FP8**, a state-of-the-art vision-language model with FP8 quantization served via **vLLM** for high-performance GPU inference. FP8 quantization reduces the memory footprint to ~9GB with virtually no loss in quality, enabling deployment on a wider range of GPU hardware. A single model handles both image understanding and natural language report generation — no separate text model needed.
 
 Each analysis displays **token consumption metrics** (prompt, completion, and total tokens) — demonstrating exactly what the inference cost would be on a cloud API, and why on-premises inference eliminates those costs entirely.
 
@@ -41,7 +41,7 @@ Each analysis displays **token consumption metrics** (prompt, completion, and to
 git clone https://github.com/curtburk/navy-surveillance-containerized-docker.git
 cd navy-surveillance-containerized-docker
 
-# 2. Download the model (~16GB)
+# 2. Download the model (~9GB)
 ./download_models.sh
 
 # 3. Start the demo
@@ -56,9 +56,9 @@ The terminal will print a clickable URL with the host IP (e.g., `http://192.168.
 
 | Requirement | Details |
 |-------------|---------|
-| GPU | HP ZGX Nano with NVIDIA GB10 Grace Blackwell (or NVIDIA GPU with 24GB+ VRAM) |
-| System Memory | 64GB+ unified memory recommended |
-| Storage | ~25GB free (16GB model + container image) |
+| GPU | HP ZGX Nano with NVIDIA GB10 Grace Blackwell, or any NVIDIA GPU with 12GB+ VRAM |
+| System Memory | 32GB+ recommended |
+| Storage | ~20GB free (9GB model + container image) |
 | OS | Ubuntu 22.04 or 24.04 LTS |
 | Docker | Docker Engine + Docker Compose |
 | NVIDIA Container Toolkit | `nvidia-ctk` for GPU passthrough |
@@ -87,9 +87,9 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
 
 **Backend** — FastAPI server that receives image uploads, base64-encodes them, and sends multimodal prompts to vLLM's OpenAI-compatible API. Handles threat classification, geolocation generation, report assembly, and token usage tracking across VLM calls.
 
-**Inference Engine** — vLLM serving Qwen3-VL-8B-Instruct in BF16 on GPU. Exposes an OpenAI-compatible `/v1/chat/completions` endpoint on internal port 8090. Returns token usage statistics with each completion.
+**Inference Engine** — vLLM serving Qwen3-VL-8B-Instruct-FP8 on GPU. FP8 quantization (block size 128) reduces memory usage to ~9GB while maintaining near-identical quality to the BF16 model. Exposes an OpenAI-compatible `/v1/chat/completions` endpoint on internal port 8090. Returns token usage statistics with each completion.
 
-**Containerization** — Based on `nvcr.io/nvidia/vllm:26.01-py3`. The entrypoint script starts vLLM in the background, waits for model loading, then starts the FastAPI application. The ~16GB model stays on the host and is mounted read-only.
+**Containerization** — Based on `nvcr.io/nvidia/vllm:26.01-py3`. The entrypoint script starts vLLM in the background, waits for model loading, then starts the FastAPI application. The model stays on the host and is mounted read-only.
 
 ---
 
@@ -109,7 +109,7 @@ navy-surveillance-containerized-docker/
 │   ├── navy-ship.jpg              # Military vessel (HIGH threat demo)
 │   └── good-times.png             # Cruise ship (LOW threat demo)
 ├── models/
-│   └── Qwen3-VL-8B-Instruct/     # Downloaded model (~16GB)
+│   └── Qwen3-VL-8B-Instruct-FP8/ # Downloaded model (~9GB)
 ├── Dockerfile                      # Based on NVIDIA vLLM container
 ├── docker-compose.yml              # One-command startup with GPU
 ├── start.sh                        # Launch script with IP detection
@@ -206,9 +206,9 @@ sudo systemctl start docker
 sudo usermod -aG docker $USER && newgrp docker
 ```
 
-**Model not found at startup** — Ensure `Qwen3-VL-8B-Instruct/` directory exists in `./models/`. Run `./download_models.sh` if missing.
+**Model not found at startup** — Ensure `Qwen3-VL-8B-Instruct-FP8/` directory exists in `./models/`. Run `./download_models.sh` if missing.
 
-**vLLM fails to start** — Check GPU memory with `nvidia-smi`. The model requires ~16GB VRAM in BF16. Ensure no other GPU processes are consuming memory.
+**vLLM fails to start** — Check GPU memory with `nvidia-smi`. The FP8 model requires ~9GB VRAM. Ensure no other GPU processes are consuming memory.
 
 **Slow first analysis** — Normal. The first image analysis after startup may take longer as vLLM warms up. Subsequent analyses are faster.
 
@@ -221,11 +221,12 @@ sudo ufw allow 8000
 
 ## Hardware
 
-This demo is designed for the **HP ZGX Nano AI Station** featuring:
-- NVIDIA GB10 Grace Blackwell Superchip
-- Up to 1000 TOPS of AI compute
-- 128GB unified memory
-- ARM-based (aarch64) architecture
+This demo is designed for the **HP ZGX Nano AI Station** but the FP8 quantized model runs on any NVIDIA GPU with 12GB+ VRAM, including:
+
+- HP ZGX Nano (NVIDIA GB10 Grace Blackwell, 128GB unified memory)
+- NVIDIA RTX 4090 Laptop (16GB)
+- NVIDIA RTX 3090/4090 Desktop (24GB)
+- NVIDIA RTX 5090 Laptop (24GB)
 
 ---
 
