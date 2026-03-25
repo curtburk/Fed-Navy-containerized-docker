@@ -731,6 +731,26 @@
                             <div class="report-section-title">Imagery Analysis</div>
                             <div class="analysis-content">${escapeHtml(report.analysis)}</div>
                         </div>
+
+                        ${report.token_usage ? `
+                        <div class="report-section" style="border-top: 1px solid var(--navy-border); padding-top: 1rem; margin-top: 1rem;">
+                            <div class="report-section-title">Token Consumption</div>
+                            <div style="display: flex; gap: 2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                                <div class="report-field">
+                                    <span class="report-field-label">Prompt:</span>
+                                    <span class="report-field-value">${report.token_usage.prompt_tokens.toLocaleString()}</span>
+                                </div>
+                                <div class="report-field">
+                                    <span class="report-field-label">Completion:</span>
+                                    <span class="report-field-value">${report.token_usage.completion_tokens.toLocaleString()}</span>
+                                </div>
+                                <div class="report-field">
+                                    <span class="report-field-label">Total:</span>
+                                    <span class="report-field-value highlight">${report.token_usage.total_tokens.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
