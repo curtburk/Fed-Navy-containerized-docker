@@ -38,8 +38,8 @@ Each analysis displays **token consumption metrics** (prompt, completion, and to
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/curtburk/navy-surveillance-containerized-docker.git
-cd navy-surveillance-containerized-docker
+git clone https://github.com/curtburk/Fed-Navy-containerized-docker.git
+cd Fed-Navy-containerized-docker
 
 # 2. Download the model (~9GB)
 ./download_models.sh
